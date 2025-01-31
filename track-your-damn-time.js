@@ -23,6 +23,78 @@ if (process.argv[2] === 'log') {
     return;
 }
 
+if (process.argv[2] === 'add') {
+    withConfig(rl, function (config) {
+        var today = moment();
+        var filename = makeFilename(today, config.dataDir);
+
+        const handleAdd = function() {
+            getTimesFromPrompt(today, function(err, results) {
+                if (err) {
+                    console.log('Nothing to add');
+                    process.exit(1);
+                }
+                fs.writeFile(filename, results.join('\n') + '\n', function(err) {
+                    if (err) throw err;
+                    console.log('Tasks added successfully');
+                    process.exit(0);
+                });
+            });
+        };
+
+        if (fs.existsSync(filename)) {
+            fs.readFile(filename, 'utf8', function(err, data) {
+                if (err) throw err;
+
+                rl.question(`There is existing content for today:\n\n${data}\n\nDo you want to replace it? (y/n) `, function(answer) {
+                    if (answer.toLowerCase() === 'y') {
+                        handleAdd();
+                    } else {
+                        console.log('Add operation cancelled');
+                        process.exit(0);
+                    }
+                });
+            });
+        } else {
+            handleAdd();
+        }
+    });
+    return;
+}
+
+if (process.argv[2] === 'append') {
+    withConfig(rl, function (config) {
+        var today = moment();
+        var filename = makeFilename(today, config.dataDir);
+
+        if (!fs.existsSync(filename)) {
+            console.log("No log exists for today yet. Use 'add' instead.");
+            process.exit(1);
+        }
+
+        getTimesFromPrompt(today, function(err, results) {
+            if (err) {
+                console.log('Nothing to append');
+                process.exit(1);
+            }
+
+            // Read existing content and append new tasks
+            fs.readFile(filename, 'utf8', function(err, data) {
+                if (err) throw err;
+
+                // Add new tasks with a newline separator
+                var newContent = data.trim() + '\n' + results.join('\n') + '\n';
+                fs.writeFile(filename, newContent, function(err) {
+                    if (err) throw err;
+                    console.log('Tasks appended successfully');
+                    process.exit(0);
+                });
+            });
+        });
+    });
+    return;
+}
+
 withConfig(rl, function (config) {
     checkDatesFrom(moment(config.startDate), config.dataDir, function () {
         process.exit(0);
